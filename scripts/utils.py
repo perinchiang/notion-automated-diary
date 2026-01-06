@@ -21,7 +21,7 @@ from config import (
 import pendulum
 
 MAX_LENGTH = (
-    1024  # NOTION 2000个字符限制https://developers.notion.com/reference/request-limits
+    1024  # NOTION 2000个字符限制
 )
 
 
@@ -79,12 +79,16 @@ def get_relation(ids):
 
 
 def get_date(start, end=None):
+    data = {
+        "start": start,
+        "end": end,
+    }
+    # 关键修改：只有当日期字符串包含时间（长度大于10）时，才添加时区
+    if len(start) > 10:
+        data["time_zone"] = "Asia/Shanghai"
+        
     return {
-        "date": {
-            "start": start,
-            "end": end,
-            "time_zone": "Asia/Shanghai",
-        }
+        "date": data
     }
 
 
@@ -244,6 +248,8 @@ def get_properties(dict1, dict2):
         elif type == FILES:
             property = {"files": [{"type": "external", "name": "Cover", "external": {"url": value}}]}
         elif type == DATE:
+            # 这里的 DATE 转换逻辑保留原本的 pendulum 转换
+            # 但最终会调用 get_date，所以 get_date 的修复才是关键
             property = {
                 "date": {
                     "start": pendulum.from_timestamp(
@@ -289,117 +295,9 @@ def get_property_value(property):
     else:
         return content
 
-
-def calculate_book_str_id(book_id):
-    md5 = hashlib.md5()
-    md5.update(book_id.encode("utf-8"))
-    digest = md5.hexdigest()
-    result = digest[0:3]
-    code, transformed_ids = transform_id(book_id)
-    result += code + "2" + digest[-2:]
-
-    for i in range(len(transformed_ids)):
-        hex_length_str = format(len(transformed_ids[i]), "x")
-        if len(hex_length_str) == 1:
-            hex_length_str = "0" + hex_length_str
-
-        result += hex_length_str + transformed_ids[i]
-
-        if i < len(transformed_ids) - 1:
-            result += "g"
-
-    if len(result) < 20:
-        result += digest[0 : 20 - len(result)]
-    md5 = hashlib.md5()
-    md5.update(result.encode("utf-8"))
-    result += md5.hexdigest()[0:3]
-    return result
-
-def transform_id(book_id):
-    id_length = len(book_id)
-    if re.match("^\d*$", book_id):
-        ary = []
-        for i in range(0, id_length, 9):
-            ary.append(format(int(book_id[i : min(i + 9, id_length)]), "x"))
-        return "3", ary
-
-    result = ""
-    for i in range(id_length):
-        result += format(ord(book_id[i]), "x")
-    return "4", [result]
-
-def get_weread_url(book_id):
-    return f"https://weread.qq.com/web/reader/{calculate_book_str_id(book_id)}"
-
 def str_to_timestamp(date):
     if date == None:
         return 0
     dt = pendulum.parse(date)
     # 获取时间戳
     return int(dt.timestamp())
-
-upload_url = 'https://wereadassets.malinkang.com/'
-
-
-def upload_image(folder_path, filename,file_path):
-    # 将文件内容编码为Base64
-    with open(file_path, 'rb') as file:
-        content_base64 = base64.b64encode(file.read()).decode('utf-8')
-
-    # 构建请求的JSON数据
-    data = {
-        'file': content_base64,
-        'filename': filename,
-        'folder': folder_path
-    }
-
-    response = requests.post(upload_url, json=data)
-
-    if response.status_code == 200:
-        print('File uploaded successfully.')
-        return response.text
-    else:
-        return None
-
-def url_to_md5(url):
-    # 创建一个md5哈希对象
-    md5_hash = hashlib.md5()
-
-    # 对URL进行编码，准备进行哈希处理
-    # 默认使用utf-8编码
-    encoded_url = url.encode('utf-8')
-
-    # 更新哈希对象的状态
-    md5_hash.update(encoded_url)
-
-    # 获取十六进制的哈希表示
-    hex_digest = md5_hash.hexdigest()
-
-    return hex_digest
-
-def download_image(url, save_dir="cover"):
-    # 确保目录存在，如果不存在则创建
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    file_name = url_to_md5(url) + ".jpg"
-    save_path = os.path.join(save_dir, file_name)
-
-    # 检查文件是否已经存在，如果存在则不进行下载
-    if os.path.exists(save_path):
-        print(f"File {file_name} already exists. Skipping download.")
-        return save_path
-
-    response = requests.get(url, stream=True)
-    if response.status_code == 200:
-        with open(save_path, "wb") as file:
-            for chunk in response.iter_content(chunk_size=128):
-                file.write(chunk)
-        print(f"Image downloaded successfully to {save_path}")
-    else:
-        print(f"Failed to download image. Status code: {response.status_code}")
-    return save_path
-
-def upload_cover(url):
-    cover_file = download_image(url)
-    return upload_image("cover",f"{cover_file.split('/')[-1]}",cover_file)
