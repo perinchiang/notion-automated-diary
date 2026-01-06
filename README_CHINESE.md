@@ -72,8 +72,8 @@
 
 | Secret Name | 说明 |
 | --- | --- |
-| `NOTION_TOKEN` | 你的 Notion Integration Token |
-| `NOTION_PAGE` | 你的 Notion 主页链接（包含所有数据库的页面） |
+| `NOTION_TOKEN` | Notion Integration Token |
+| `NOTION_PAGE` | Page ID（32个数字和字母） |
 
 ### 4. 自动化运行
 
