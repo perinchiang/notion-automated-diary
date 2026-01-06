@@ -33,9 +33,9 @@ def backfill_relations():
             
             # 3. 检查是否已经有关联 (为了节省资源，如果年月日周都有了，就不更新了)
             # 你可以注释掉下面这段 check，强制全部刷新
-            has_year = len(properties.get("年", {}).get("relation", [])) > 0
-            has_month = len(properties.get("月", {}).get("relation", [])) > 0
-            has_week = len(properties.get("周", {}).get("relation", [])) > 0
+            has_year = len(properties.get("Year", {}).get("relation", [])) > 0
+            has_month = len(properties.get("Month", {}).get("relation", [])) > 0
+            has_week = len(properties.get("Week", {}).get("relation", [])) > 0
             
             if has_year and has_month and has_week:
                 # print(f"跳过已归档页面: {date_str}")
@@ -44,17 +44,17 @@ def backfill_relations():
             # 4. 计算关联 ID
             print(f"正在归档: {date_str} ...")
             relation_ids = {}
-            relation_ids["年"] = helper.get_year_relation_id(date_obj)
-            relation_ids["月"] = helper.get_month_relation_id(date_obj)
-            relation_ids["周"] = helper.get_week_relation_id(date_obj)
-            relation_ids["全部"] = helper.get_relation_id("全部", helper.all_database_id, "https://www.notion.so/icons/site-selection_gray.svg")
+            relation_ids["Year"] = helper.get_year_relation_id(date_obj)
+            relation_ids["Month"] = helper.get_month_relation_id(date_obj)
+            relation_ids["Week"] = helper.get_week_relation_id(date_obj)
+            relation_ids["All"] = helper.get_relation_id("全部", helper.all_database_id, "https://www.notion.so/icons/site-selection_gray.svg")
 
             # 5. 更新页面
             new_props = {}
-            new_props["年"] = utils.get_relation([relation_ids["年"]])
-            new_props["月"] = utils.get_relation([relation_ids["月"]])
-            new_props["周"] = utils.get_relation([relation_ids["周"]])
-            new_props["全部"] = utils.get_relation([relation_ids["全部"]])
+            new_props["Year"] = utils.get_relation([relation_ids["Year"]])
+            new_props["Month"] = utils.get_relation([relation_ids["Month"]])
+            new_props["Week"] = utils.get_relation([relation_ids["Week"]])
+            new_props["All"] = utils.get_relation([relation_ids["All"]])
             
             # 为了美观，我们也顺便把标题刷新一下，确保格式统一（可选）
             # new_props["Name"] = utils.get_title(date_obj.to_date_string())
