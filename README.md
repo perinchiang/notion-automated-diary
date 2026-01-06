@@ -3,7 +3,7 @@
 **A Fully Automated Notion Life OS Diary System**
 
 [中文](https://www.google.com/search?q=README_CHINESE.md) | [English](README.md)
-
+![image.png](attachment:2952248c-974c-4ce8-8f41-19af8745dc6f:image.png)
 > A secondary development based on `duolingo2notion`. This is an automated "Life OS" daily diary management system.
 
 ## 🌟 Key Features
