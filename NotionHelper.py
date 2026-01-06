@@ -15,26 +15,26 @@ def format_date(date):
 
 def get_date(start, end=None):
     if end:
-        return {"start": start, "end": end}
-    return {"start": start}
+        return{"start": start, "end": end}
+    return{"start": start}
 
 def get_title(content):
-    return {"title": [{"text": {"content": content}}]}
+    return{"title": [{"text":{"content": content}}]}
 
 def get_rich_text(content):
-    return {"rich_text": [{"text": {"content": content}}]}
+    return{"rich_text": [{"text":{"content": content}}]}
 
 def get_icon(url):
     if url.startswith("http"):
-        return {"type": "external", "external": {"url": url}}
-    return {"type": "emoji", "emoji": url}
+        return{"type": "external", "external":{"url": url}}
+    return{"type": "emoji", "emoji": url}
 
 def get_relation(relation_ids):
-    # 过滤掉 None，确保每个元素都是 {"id": "xxx"} 格式
-    return {"relation": [{"id": id} for id in relation_ids if id]}
+    # 过滤掉 None，确保每个元素都是{"id": "xxx"} 格式
+    return{"relation": [{"id": id} for id in relation_ids if id]}
 
 def get_number(number):
-    return {"number": number}
+    return{"number": number}
 
 # === 核心日期计算逻辑 ===
 
@@ -61,24 +61,24 @@ def timestamp_to_date(timestamp):
 
 def get_property_value(page, property_name):
     # 简化版获取属性值
-    return page.get("properties", {}).get(property_name, {})
+    return page.get("properties",{}).get(property_name,{})
   
 load_dotenv()
-from utils import (
-    format_date,
-    get_date,
-    get_first_and_last_day_of_month,
-    get_first_and_last_day_of_week,
-    get_first_and_last_day_of_year,
-    get_icon,
-    get_number,
-    get_relation,
-    get_rich_text,
-    get_title,
-    timestamp_to_date,
-    get_property_value,
+from utils import(
+    format_date,
+    get_date,
+    get_first_and_last_day_of_month,
+    get_first_and_last_day_of_week,
+    get_first_and_last_day_of_year,
+    get_icon,
+    get_number,
+    get_relation,
+    get_rich_text,
+    get_title,
+    timestamp_to_date,
+    get_property_value,
 )
-from config import (
+from config import(
     TARGET_ICON_URL,
     TAG_ICON_URL,
     USER_ICON_URL,
@@ -87,7 +87,7 @@ from config import (
 
 
 class NotionHelper:
-    database_name_dict = {
+    database_name_dict ={
         "DAY_DATABASE_NAME": "日",
         "WEEK_DATABASE_NAME": "周",
         "MONTH_DATABASE_NAME": "月",
@@ -95,12 +95,12 @@ class NotionHelper:
         "ALL_DATABASE_NAME": "全部",
         "MISTAKE_DATABASE_NAME": "错题本",
     }
-    database_id_dict = {}
+    database_id_dict ={}
     heatmap_block_id = None
 
     def __init__(self):
         self.client = Client(auth=os.getenv("NOTION_TOKEN"), log_level=logging.ERROR)
-        self.__cache = {}
+        self.__cache ={}
         self.page_id = self.extract_page_id(os.getenv("NOTION_PAGE"))
         self.search_database(self.page_id)
         for key in self.database_name_dict.keys():
@@ -152,11 +152,11 @@ class NotionHelper:
             # 检查子块的类型
 
             if child["type"] == "child_database":
-                self.database_id_dict[child.get("child_database").get("title")] = (
+                self.database_id_dict[child.get("child_database").get("title")] =(
                     child.get("id")
                 )
             elif child["type"] == "embed" and child.get("embed").get("url"):
-                if (
+                if(
                     child.get("embed")
                     .get("url")
                     .startswith("https://heatmap.malinkang.com/")
@@ -176,7 +176,7 @@ class NotionHelper:
         week = date.isocalendar().week
         week = f"{year}年第{week}周"
         start, end = get_first_and_last_day_of_week(date)
-        properties = {"日期": get_date(format_date(start), format_date(end))}
+        properties ={"日期": get_date(format_date(start), format_date(end))}
         return self.get_relation_id(
             week, self.week_database_id, TARGET_ICON_URL, properties
         )
@@ -184,7 +184,7 @@ class NotionHelper:
     def get_month_relation_id(self, date):
         month = date.strftime("%Y年%-m月")
         start, end = get_first_and_last_day_of_month(date)
-        properties = {"日期": get_date(format_date(start), format_date(end))}
+        properties ={"日期": get_date(format_date(start), format_date(end))}
         return self.get_relation_id(
             month, self.month_database_id, TARGET_ICON_URL, properties
         )
@@ -192,7 +192,7 @@ class NotionHelper:
     def get_year_relation_id(self, date):
         year = date.strftime("%Y")
         start, end = get_first_and_last_day_of_year(date)
-        properties = {"日期": get_date(format_date(start), format_date(end))}
+        properties ={"日期": get_date(format_date(start), format_date(end))}
         return self.get_relation_id(
             year, self.year_database_id, TARGET_ICON_URL, properties
         )
@@ -200,7 +200,7 @@ class NotionHelper:
     def get_day_relation_id(self, date):
         new_date = date.replace(hour=0, minute=0, second=0, microsecond=0)
         day = new_date.strftime("%Y-%m-%d")
-        properties = {
+        properties ={
             "日期": get_date(format_date(date)),
         }
         properties["年"] = get_relation(
@@ -227,10 +227,10 @@ class NotionHelper:
         key = f"{id}{name}"
         if key in self.__cache:
             return self.__cache.get(key)
-        filter = {"property": "标题", "title": {"equals": name}}
+        filter ={"property": "标题", "title":{"equals": name}}
         response = self.client.databases.query(database_id=id, filter=filter)
         if len(response.get("results")) == 0:
-            parent = {"database_id": id, "type": "database_id"}
+            parent ={"database_id": id, "type": "database_id"}
             properties["标题"] = get_title(name)
             page_id = self.client.pages.create(
                 parent=parent, properties=properties, icon=get_icon(icon)
@@ -254,7 +254,7 @@ class NotionHelper:
 
     @retry(stop_max_attempt_number=3, wait_fixed=5000)
     def query(self, **kwargs):
-        kwargs = {k: v for k, v in kwargs.items() if v}
+        kwargs ={k: v for k, v in kwargs.items() if v}
         return self.client.databases.query(**kwargs)
 
     @retry(stop_max_attempt_number=3, wait_fixed=5000)
