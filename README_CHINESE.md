@@ -2,9 +2,7 @@
 
 **全自动化 Notion Life OS 日记系统**
 
-[中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-blue)
-
-[English](https://img.shields.io/badge/Language-English-blue)
+[中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-blue)|[English](https://img.shields.io/badge/Language-English-blue)
 
 > 基于 duolingo2notion 二次开发，一个自动化的 Life OS 每日日记管理系统。
 > 
@@ -34,7 +32,7 @@
     
     ![](https://images-1314261959.cos.ap-guangzhou.myqcloud.com/img/20260106181711895.png)
     
-    ![image.png](attachment:4a207495-765f-4139-ad8d-02fe73faac5b:image.png)
+    ![](https://images-1314261959.cos.ap-guangzhou.myqcloud.com/img/20260106215124503.png)
     
     ![](https://images-1314261959.cos.ap-guangzhou.myqcloud.com/img/20260106214523177.png)
     
