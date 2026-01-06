@@ -2,77 +2,69 @@ import argparse
 import pendulum
 from notion_helper import NotionHelper
 import utils
-from config import TARGET_ICON_URL # 确保引入图标配置
+from config import TARGET_ICON_URL 
 
 def backfill_relations():
     helper = NotionHelper()
-    print("正在获取所有日记数据，准备迁移关联到英文属性...")
+    print("🚀 开始执行：强制刷新关联并同步日期图标...")
     
-    # 1. 获取“日”数据库中的所有页面
     all_pages = helper.query_all(helper.day_database_id)
-    print(f"共找到 {len(all_pages)} 篇日记。")
+    print(f"📦 共找到 {len(all_pages)} 篇日记。")
 
     count = 0
+    # 定义基础图标 API 地址
+    ICON_BASE_URL = "https://api.wolai.com/v1/icon?type=1&locale=cn&pro=0&color=red&method=f1"
+
     for index, page in enumerate(all_pages):
         try:
             page_id = page.get("id")
             properties = page.get("properties")
             
-            # 2. 获取日记的日期 (你改成了 Date，这里读取 Date)
-            date_prop = properties.get("Date")
+            # 1. 获取日期
+            date_prop = properties.get("Date") or properties.get("日期")
             if not date_prop or not date_prop.get("date"):
-                # 如果 Date 没读到，尝试读一下老的中文“日期”防止遗漏，如果都没有则跳过
-                date_prop = properties.get("日期")
-                if not date_prop or not date_prop.get("date"):
-                    print(f"⚠️ 跳过无日期的页面: {page_id}")
-                    continue
+                continue
                 
             date_str = date_prop.get("date").get("start")
-            # 解析日期
-            date_obj = pendulum.parse(date_str)
-            # 统一转为 Asia/Shanghai
-            date_obj = date_obj.in_timezone("Asia/Shanghai")
-            
-            # --- 步骤 B: 检查是否需要迁移 ---
-            # 🔴 把下面这几行判断全部注释掉，强制程序运行
-            # has_year = len(properties.get("Year", {}).get("relation", [])) > 0
-            # has_month = len(properties.get("Month", {}).get("relation", [])) > 0
-            # has_week = len(properties.get("Week", {}).get("relation", [])) > 0
-            # has_all = len(properties.get("All", {}).get("relation", [])) > 0
-            
-            # if has_year and has_month and has_week and has_all:
-            #     skipped += 1
-            #     continue
+            date_obj = pendulum.parse(date_str).in_timezone("Asia/Shanghai")
+            day_num = date_obj.day # 获取这一天是几号
 
-            # --- 步骤 C: 直接开始计算并更新 ---
-            print(f"🔄 [{index+1}/{len(all_pages)}] 正在强制更新关联: {date_str} ...")
-            # 4. 计算关联 ID
-            print(f"[{index+1}/{len(all_pages)}] 正在迁移: {date_str} ...")
-            relation_ids = {}
-            relation_ids["Year"] = helper.get_year_relation_id(date_obj)
-            relation_ids["Month"] = helper.get_month_relation_id(date_obj)
-            relation_ids["Week"] = helper.get_week_relation_id(date_obj)
-            # 注意：这里图标 URL 我直接写死或者从 config 引用，确保不出错
-            relation_ids["All"] = helper.get_relation_id("All", helper.all_database_id, "https://www.notion.so/icons/site-selection_gray.svg")
+            # 2. 计算关联 ID
+            relation_ids = {
+                "Year": helper.get_year_relation_id(date_obj),
+                "Month": helper.get_month_relation_id(date_obj),
+                "Week": helper.get_week_relation_id(date_obj),
+                "All": helper.get_relation_id("All", helper.all_database_id, "https://www.notion.so/icons/site-selection_gray.svg")
+            }
 
-            # 5. 更新页面 (关键修改：这里把 Key 改成新的英文属性名)
-            new_props = {}
-            new_props["Year"] = utils.get_relation([relation_ids["Year"]])
-            new_props["Month"] = utils.get_relation([relation_ids["Month"]])
-            new_props["Week"] = utils.get_relation([relation_ids["Week"]])
-            new_props["All"] = utils.get_relation([relation_ids["All"]])
+            # 3. 准备更新数据
+            new_props = {
+                "Year": utils.get_relation([relation_ids["Year"]]),
+                "Month": utils.get_relation([relation_ids["Month"]]),
+                "Week": utils.get_relation([relation_ids["Week"]]),
+                "All": utils.get_relation([relation_ids["All"]])
+            }
+
+            # 🔴 关键点：动态生成日期图标 URL
+            target_icon_url = f"{ICON_BASE_URL}&day={day_num}"
+            new_icon = utils.get_icon(target_icon_url)
+
+            # 4. 执行更新 (同时更新属性和图标)
+            # 注意：helper.update_page 默认可能只改属性，我们要确保它也改了 icon
+            helper.client.pages.update(
+                page_id=page_id, 
+                properties=new_props, 
+                icon=new_icon
+            )
             
-            # 选做：如果你原来的标题也没写对，顺便刷新一下标题 (去掉注释即可)
-            # new_props["Name"] = utils.get_title(date_obj.to_date_string())
-
-            helper.update_page(page_id=page_id, properties=new_props)
             count += 1
-            print(f"   ✅ 迁移成功！")
+            if count % 10 == 0:
+                print(f"🔄 已处理 {count}/{len(all_pages)} 篇...")
             
         except Exception as e:
-            print(f"❌ 处理页面出错 {page.get('id')}: {e}")
+            print(f"❌ 处理出错 {page.get('id')}: {e}")
 
-    print(f"🎉 全部完成！共迁移了 {count} 篇日记的关联。")
+    print(f"\n🎉 迁移与图标同步完成！共处理了 {count} 篇日记。")
 
 if __name__ == "__main__":
     backfill_relations()
