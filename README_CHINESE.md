@@ -2,7 +2,7 @@
 
 **全自动化 Notion Life OS 日记系统**
 
-[中文](https://img.shields.io/badge/Language-%E4%B8%AD%E6%96%87-blue)|[English](https://img.shields.io/badge/Language-English-blue)
+[中文](https://github.com/perinchiang/notion-automated-diary/edit/main/README_CHINESE)|[English](https://github.com/perinchiang/notion-automated-diary/edit/main/README.md)
 
 > 基于 duolingo2notion 二次开发，一个自动化的 Life OS 每日日记管理系统。
 > 
