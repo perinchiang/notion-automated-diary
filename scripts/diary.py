@@ -29,33 +29,33 @@ def get_text_from_blocks(blocks):
         # 如果有子块（比如缩进的内容），虽然 Notion API 限制两层，但尽量尝试
         if block.get("has_children"):
             # 注意：Github Action 运行时间有限，且 Notion API 读取子块较慢
-            # 这里为了速度，暂时只读取第一层内容的字数，通常足够了
+            # 这里为了速度，暂时只读取第一层内容的Word Count，通常足够了
             pass
             
     return text_content
 
 def update_word_count(page_id):
-    """统计页面字数并更新"""
-    print(f"正在统计字数 (Page ID: {page_id})...")
+    """统计页面Word Count并更新"""
+    print(f"正在统计Word Count (Page ID: {page_id})...")
     try:
         # 获取所有 Block
         blocks = helper.get_block_children(page_id)
         full_text = get_text_from_blocks(blocks)
         
-        # 统计字数 (中文按字符统计，去除空格换行)
+        # 统计Word Count (中文按字符统计，去除空格换行)
         clean_text = full_text.replace(" ", "").replace("\n", "")
         count = len(clean_text)
         
         # 更新到 Notion
-        # 请确保你的 Notion 数据库里有一个叫 "字数" 的 Number 属性
+        # 请确保你的 Notion 数据库里有一个叫 "Word Count" 的 Number 属性
         properties = {
-            "字数": utils.get_number(count) 
+            "Word Count": utils.get_number(count) 
         }
         helper.update_page(page_id, properties)
-        print(f"✅ 字数统计更新完毕: {count} 字")
+        print(f"✅ Word Count统计更新完毕: {count} 字")
         
     except Exception as e:
-        print(f"❌ 字数统计失败: {e}")
+        print(f"❌ Word Count统计失败: {e}")
 
 def get_duolingo_daily_stats():
     """获取多邻国数据 (保持原有逻辑)"""
@@ -136,7 +136,7 @@ def create_daily_log():
         print(f"页面 {today_str} 已存在。")
         page_id = response.get("results")[0].get("id")
         
-        # 【新功能】如果页面存在，说明可能是晚上运行，尝试更新字数
+        # 【新功能】如果页面存在，说明可能是晚上运行，尝试更新Word Count
         update_word_count(page_id)
         return
 
@@ -154,8 +154,8 @@ def create_daily_log():
     properties["月"] = utils.get_relation([relation_ids["月"]])
     properties["周"] = utils.get_relation([relation_ids["周"]])
     properties["全部"] = utils.get_relation([relation_ids["全部"]])
-    # 初始化字数为 0
-    properties["字数"] = utils.get_number(0)
+    # 初始化Word Count为 0
+    properties["Word Count"] = utils.get_number(0)
 
     parent = {"database_id": helper.day_database_id, "type": "database_id"}
     new_page = helper.create_page(parent=parent, properties=properties, icon=utils.get_icon(DIARY_ICON))
