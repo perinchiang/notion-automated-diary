@@ -132,8 +132,8 @@ class NotionHelper:
         month_title = date.format("MMMM YYYY", locale="en")
         
         start, end = get_first_and_last_day_of_month(date)
-        # 注意：这里的日期属性名我保持了中文"日期"，如果你的月数据库列名也改成了"Date"，请把下面的"日期"改为"Date"
-        properties = {"日期": get_date(format_date(start), format_date(end))}
+        # 注意：这里的Date属性名我保持了中文"Date"，如果你的月数据库列名也改成了"Date"，请把下面的"Date"改为"Date"
+        properties = {"Date": get_date(format_date(start), format_date(end))}
         return self.get_relation_id(
             month_title, self.month_database_id, TARGET_ICON_URL, properties
         )
@@ -142,8 +142,8 @@ class NotionHelper:
         # 年标题 (2026) 纯数字不用改
         year = date.strftime("%Y")
         start, end = get_first_and_last_day_of_year(date)
-        # 注意：同上，确认年数据库的日期列名
-        properties = {"日期": get_date(format_date(start), format_date(end))}
+        # 注意：同上，确认年数据库的Date列名
+        properties = {"Date": get_date(format_date(start), format_date(end))}
         return self.get_relation_id(
             year, self.year_database_id, TARGET_ICON_URL, properties
         )
