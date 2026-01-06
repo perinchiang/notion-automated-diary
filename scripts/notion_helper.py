@@ -2,6 +2,8 @@ import logging
 import os
 import re
 import time
+# 引入 locale 库以支持月份英文名（可选，但使用 pendulum format 更方便）
+import pendulum 
 
 from notion_client import Client
 from retrying import retry
@@ -32,13 +34,14 @@ from config import (
 
 
 class NotionHelper:
+    # 🔴 修改点 1：把这里的中文名全部改为英文，对应 Notion 数据库的新名字
     database_name_dict = {
-        "DAY_DATABASE_NAME": "日",
-        "WEEK_DATABASE_NAME": "周",
-        "MONTH_DATABASE_NAME": "月",
-        "YEAR_DATABASE_NAME": "年",
-        "ALL_DATABASE_NAME": "全部",
-        "MISTAKE_DATABASE_NAME": "错题本",
+        "DAY_DATABASE_NAME": "Day",
+        "WEEK_DATABASE_NAME": "Week",
+        "MONTH_DATABASE_NAME": "Month",
+        "YEAR_DATABASE_NAME": "Year",
+        "ALL_DATABASE_NAME": "All",
+        "MISTAKE_DATABASE_NAME": "Mistakes", # 如果你有错题本也顺便改了
     }
     database_id_dict = {}
     heatmap_block_id = None
@@ -112,56 +115,50 @@ class NotionHelper:
         return self.client.blocks.update(block_id=block_id, embed={"url": url})
 
     def get_week_relation_id(self, date):
-        # 周数据库：使用 "Date"
+        # 🔴 修改点 2：周标题格式化 (例如: 2026 Week 1)
         year = date.isocalendar().year
-        week = date.isocalendar().week
-        week = f"{year}年第{week}周"
+        week_num = date.isocalendar().week
+        week_title = f"{year} Week {week_num}"
+        
         start, end = get_first_and_last_day_of_week(date)
         properties = {"Date": get_date(format_date(start), format_date(end))}
         return self.get_relation_id(
-            week, self.week_database_id, TARGET_ICON_URL, properties
+            week_title, self.week_database_id, TARGET_ICON_URL, properties
         )
 
     def get_month_relation_id(self, date):
-        # 月数据库：使用 "日期"
-        month = date.strftime("%Y年%-m月")
+        # 🔴 修改点 3：月标题格式化 (例如: January 2026)
+        # 使用 pendulum 的 format 功能，locale='en' 确保是英文
+        month_title = date.format("MMMM YYYY", locale="en")
+        
         start, end = get_first_and_last_day_of_month(date)
+        # 注意：这里的日期属性名我保持了中文"日期"，如果你的月数据库列名也改成了"Date"，请把下面的"日期"改为"Date"
         properties = {"日期": get_date(format_date(start), format_date(end))}
         return self.get_relation_id(
-            month, self.month_database_id, TARGET_ICON_URL, properties
+            month_title, self.month_database_id, TARGET_ICON_URL, properties
         )
 
     def get_year_relation_id(self, date):
-        # 年数据库：使用 "日期"
+        # 年标题 (2026) 纯数字不用改
         year = date.strftime("%Y")
         start, end = get_first_and_last_day_of_year(date)
+        # 注意：同上，确认年数据库的日期列名
         properties = {"日期": get_date(format_date(start), format_date(end))}
         return self.get_relation_id(
             year, self.year_database_id, TARGET_ICON_URL, properties
         )
 
     def get_day_relation_id(self, date):
-        # 日数据库：使用 "Date"
         new_date = date.replace(hour=0, minute=0, second=0, microsecond=0)
         day = new_date.strftime("%Y-%m-%d")
         properties = {
             "Date": get_date(format_date(date)),
         }
-        properties["年"] = get_relation(
-            [
-                self.get_year_relation_id(new_date),
-            ]
-        )
-        properties["月"] = get_relation(
-            [
-                self.get_month_relation_id(new_date),
-            ]
-        )
-        properties["周"] = get_relation(
-            [
-                self.get_week_relation_id(new_date),
-            ]
-        )
+        # 🔴 修改点 4：这里生成日记时的关联键名也要改成英文
+        properties["Year"] = get_relation([self.get_year_relation_id(new_date)])
+        properties["Month"] = get_relation([self.get_month_relation_id(new_date)])
+        properties["Week"] = get_relation([self.get_week_relation_id(new_date)])
+        
         return self.get_relation_id(
             day, self.day_database_id, TARGET_ICON_URL, properties
         )
@@ -172,14 +169,12 @@ class NotionHelper:
         if key in self.__cache:
             return self.__cache.get(key)
         
-        # 修正：所有数据库的标题列统一使用 "Name"
+        # 这里的 Name 保持不变，因为我们之前统一了所有库的第一列都叫 Name
         filter = {"property": "Name", "title": {"equals": name}}
         
         response = self.client.databases.query(database_id=id, filter=filter)
         if len(response.get("results")) == 0:
             parent = {"database_id": id, "type": "database_id"}
-            
-            # 修正：创建时标题列也使用 "Name"
             properties["Name"] = get_title(name)
             
             page_id = self.client.pages.create(
@@ -190,6 +185,7 @@ class NotionHelper:
         self.__cache[key] = page_id
         return page_id
 
+    # ... (后面的 create_page, update_page 等通用函数保持不变即可) ...
     @retry(stop_max_attempt_number=3, wait_fixed=5000)
     def update_book_page(self, page_id, properties):
         return self.client.pages.update(page_id=page_id, properties=properties)
@@ -261,28 +257,18 @@ class NotionHelper:
 
     def get_date_relation(self, properties, date, include_day=False):
         if include_day:
-            properties["日"] = get_relation(
-                [
-                    self.get_day_relation_id(date),
-                ]
+            properties["Day"] = get_relation(
+                [self.get_day_relation_id(date)]
             )
-        properties["年"] = get_relation(
-            [
-                self.get_year_relation_id(date),
-            ]
+        properties["Year"] = get_relation(
+            [self.get_year_relation_id(date)]
         )
-        properties["月"] = get_relation(
-            [
-                self.get_month_relation_id(date),
-            ]
+        properties["Month"] = get_relation(
+            [self.get_month_relation_id(date)]
         )
-        properties["周"] = get_relation(
-            [
-                self.get_week_relation_id(date),
-            ]
+        properties["Week"] = get_relation(
+            [self.get_week_relation_id(date)]
         )
-        properties["全部"] = get_relation(
-            [
-                self.get_relation_id("全部", self.all_database_id, TARGET_ICON_URL),
-            ]
+        properties["All"] = get_relation(
+            [self.get_relation_id("All", self.all_database_id, TARGET_ICON_URL)]
         )
