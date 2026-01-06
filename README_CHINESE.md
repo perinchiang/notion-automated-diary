@@ -34,6 +34,10 @@
     
     ![](https://images-1314261959.cos.ap-guangzhou.myqcloud.com/img/20260106181711895.png)
     
+    ![image.png](attachment:4a207495-765f-4139-ad8d-02fe73faac5b:image.png)
+    
+    ![](https://images-1314261959.cos.ap-guangzhou.myqcloud.com/img/20260106214523177.png)
+    
 
 ---
 
@@ -42,7 +46,9 @@
 ### 1. 准备 Notion 数据库
 
 你需要一个包含以下层级的 Life OS 系统（建议直接复制模板）：
-[https://perinchiang.notion.site/Log-Template-2e028fdf389a8012897fc0b905805fcc](https://perinchiang.notion.site/Log-Template-2e028fdf389a8012897fc0b905805fcc)
+
+[https://perinchiang.notion.site/Log-Template-2e028fdf389a8012897fc0b905805fcc](https://www.notion.so/Log-Template-2e028fdf389a8012897fc0b905805fcc?pvs=21)
+
 - **Day (日)**
 - **Week (周)**
 - **Month (月)**
