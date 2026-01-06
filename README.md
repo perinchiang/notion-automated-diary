@@ -1,61 +1,53 @@
 # 🚀 Notion Life OS: Fully Automated Diary (Auto-Sync)
-[![中文](https://img.shields.io/badge/Language-中文-blue)](https://github.com/perinchiang/log2notion/blob/main/README_CHINESE.md) [![English](https://img.shields.io/badge/Language-English-blue)](https://github.com/perinchiang/log2notion/blob/main/README.md)
 
-**A Fully Automated Life OS Diary System for Notion**
+**A Fully Automated Notion Life OS Diary System**
 
-> A powerful variant based on [duolingo2notion](https://github.com/malinkang/duolingo2notion). This is not just a Duolingo syncer, but a complete "Life OS" daily management automation.
+[中文](https://www.google.com/search?q=README_CHINESE.md) | [English](README.md)
 
-![License](https://img.shields.io/badge/license-MIT-green) ![Python](https://img.shields.io/badge/python-3.9-blue) ![Notion](https://img.shields.io/badge/Notion-API-black)
+> A secondary development based on `duolingo2notion`. This is an automated "Life OS" daily diary management system.
 
 ## 🌟 Key Features
 
-Most Notion automations only do one thing. This project aims for **"A Fully Automated Day"**:
+Most Notion automation scripts on the market offer only single functions. The goal of this project is **"A Fully Automated Day"**:
 
-1.  **📅 Auto-Create Daily Log**:
-    * Automatically generates a diary page every morning at 00:05.
-    * **Smart Relations**: Automatically links the day to the correct **Year**, **Month**, **Week**, and **All** databases. No manual linking required.
-    * Supports dynamic icons (Calendar icon matches the current date).
+### 📅 Auto-Create Daily Diary
 
-2.  **🦉 Duolingo Integration**:
-    * Seamlessly fetches your daily Duolingo learning stats (XP, Study Time, Lessons).
-    * Inserts a beautiful "Callout Block" into your diary page.
+* **Automatic Generation**: Automatically generates the daily diary Page every morning.
+* **Smart Relations**: Automatically calculates and links to the corresponding **Year**, **Month**, **Week**, and **All** databases. No manual maintenance required.
+* **Dynamic Icons**: Supports calendar icons that change dynamically based on the current date.
+* **Historical Data Support**: Supports importing old entries (Run the "Backfill Old Data" workflow in GitHub Actions manually after import).
 
-3.  **✍️ Auto Word Count**:
-    * Scans your diary page content every night at 23:45.
-    * Counts your words automatically and fills the `Word Count` property.
-    * Enables monthly/yearly word count stats via Notion Rollups.
+### ✍️ Smart Word Count
 
-4.  **🎨 Ultimate Gallery View Support**:
-    * Designed for Notion Formula 2.0.
-    * Provides **Rainbow Progress Bars** and **Mood Spectrum Bars**.
-    * Visualizes your monthly progress, word counts, and mood distribution in the Gallery View.
+* **Auto-Scan**: Scans the day's diary content every night.
+* **Auto-Update**: Automatically counts words and fills the property, enabling monthly/yearly word count summaries via Notion Rollups.
 
----
+### 🎨 Ultimate Gallery View Support
+
+* **Formula 2.0**: Powered by Notion Formula 2.0, offering **Rainbow Progress Bars** and **Mood Spectrum** formulas.
+* **Visual Stats**: Automatically displays entry progress, word count summaries, and mood distribution bars in Month/Week/Year Gallery views.
 
 ## 🛠️ Preview
 
-### 📊 Monthly Gallery
-_Visualize your month with progress bars and mood spectrums._
-![Monthly View](https://via.placeholder.com/800x400?text=Place+Your+Screenshot+Here)
+* **Monthly Gallery**: Automatically visualizes monthly progress and mood distribution.
+* **Daily Page**: Automatically links all hierarchy levels (Year/Month/Week).
 
-### 📝 Daily Page
-_Auto-generated page with Duolingo stats and auto-relations._
-![Daily Page](https://via.placeholder.com/800x400?text=Place+Your+Screenshot+Here)
+## ⚙️ How to Use
 
----
+### 1. Prepare Notion Databases
 
-## ⚙️ Setup Guide
+You need a "Life OS" system with the following hierarchy (It is recommended to duplicate the template directly):
 
-### 1. Notion Database Setup
-You need a "Life OS" system with the following databases. (It is recommended to duplicate a compatible template).
+* **Day**
+* **Week**
+* **Month**
+* **Year**
+* **All**
 
-Databases required: **Day**, **Week**, **Month**, **Year**, **All**.
-
-**Required Properties in "Day" Database:**
-*(Case Sensitive)*
+**The "Day" Database MUST contain the following properties (Case Sensitive):**
 
 | Property Name | Type | Description |
-| :--- | :--- | :--- |
+| --- | --- | --- |
 | `Name` | Title | The title of the page |
 | `Date` | Date | The date of the entry |
 | `Word Count` | Number | Stores the word count |
@@ -66,30 +58,25 @@ Databases required: **Day**, **Week**, **Month**, **Year**, **All**.
 | `All` | Relation | Links to the All database |
 
 ### 2. Fork this Repository
-Click the **Fork** button at the top right of this page to copy this code to your GitHub account.
+
+Click the **Fork** button in the top-right corner to copy this repository to your GitHub account.
 
 ### 3. Configure GitHub Secrets
-Go to your repository **Settings** -> **Secrets and variables** -> **Actions**, and add the following secrets:
+
+Go to your repository's **Settings** -> **Secrets and variables** -> **Actions**, and add the following secrets:
 
 | Secret Name | Description |
-| :--- | :--- |
+| --- | --- |
 | `NOTION_TOKEN` | Your Notion Integration Token |
-| `NOTION_PAGE` | Link to your Life OS dashboard page |
-| `JWT` | Duolingo JWT Token (Find it in browser cookies) |
-| `USER_NAME` | Duolingo Username |
+| `NOTION_PAGE` | The Page ID of your Dashboard (32 alphanumeric characters) |
 
 ### 4. Automation Schedule
-The workflow is handled by GitHub Actions:
-* **00:05 (UTC+8)**: Creates the daily page & syncs Duolingo.
-* **23:45 (UTC+8)**: Counts words and updates the page.
 
----
+The project is configured with GitHub Actions:
 
-## 🧠 Advanced: Notion Formulas
+* **Daily 00:05**: Automatically creates the diary page for the day.
+* **Daily 23:45**: Automatically counts words for the day and updates the page.
 
-This project works best with my custom Notion Formulas 2.0 for Gallery Views.
+## 🤝 Credits
 
-**Example Code for Mood Spectrum Bar:**
-
-```javascript
-/* Paste the formula code here or link to your blog/gist */
+This project is modified from `malinkang/duolingo2notion`.
