@@ -3,9 +3,10 @@ name: Daily Diary Sync
 on:
   workflow_dispatch:
   schedule:
-    # 每天北京时间 0:05 运行 (UTC时间 16:05)
-    # 你可以根据需要调整 cron 表达式
+    # 第一次: 北京时间 00:05 (UTC 16:05) -> 创建页面
     - cron: "5 16 * * *"
+    # 第二次: 北京时间 23:45 (UTC 15:45) -> 统计字数
+    - cron: "45 15 * * *"
 
 jobs:
   sync:
