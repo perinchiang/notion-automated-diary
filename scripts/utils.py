@@ -4,7 +4,6 @@ from datetime import timedelta
 import hashlib
 import os
 import re
-import requests
 import base64
 from config import (
     RICH_TEXT,
