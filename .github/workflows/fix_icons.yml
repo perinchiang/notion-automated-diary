@@ -1,0 +1,30 @@
+name: Fix Icons & Relations
+
+on:
+  workflow_dispatch: # 手动触发按钮
+
+jobs:
+  fix_data:
+    name: Fix Relations
+    runs-on: ubuntu-latest
+    env:
+        NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        NOTION_PAGE: ${{ secrets.NOTION_PAGE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run Backfill Script
+        run: |
+          # 只运行修复图标和关联的脚本
+          python -u scripts/backfill.py
