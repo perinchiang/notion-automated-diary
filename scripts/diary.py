@@ -1,6 +1,4 @@
 import argparse
-import os
-import requests
 import pendulum
 from notion_helper import NotionHelper
 import utils
@@ -8,12 +6,6 @@ from config import RELATION, TITLE, DATE
 
 # 动态图标
 DIARY_ICON = "https://api.wolai.com/v1/icon?type=1&locale=cn&pro=0&color=red&method=f1"
-
-# 多邻国配置
-DUOLINGO_HEADERS = {
-    "Accept": "*/*",
-    "User-Agent": "request",
-}
 
 def get_text_from_blocks(blocks):
     """递归提取 Block 中的纯文本"""
@@ -57,72 +49,6 @@ def update_word_count(page_id):
     except Exception as e:
         print(f"❌ Word Count统计失败: {e}")
 
-def get_duolingo_daily_stats():
-    """获取多邻国数据 (保持原有逻辑)"""
-    try:
-        jwt = os.getenv('JWT')
-        username = os.getenv('USER_NAME')
-        if not jwt or not username:
-            return None
-
-        DUOLINGO_HEADERS["Authorization"] = f"Bearer {jwt.strip()}"
-        r_user = requests.get(f"https://www.duolingo.com/users/{username.strip()}", headers=DUOLINGO_HEADERS)
-        if not r_user.ok: return None
-        
-        user_data = r_user.json()
-        duolingo_id = user_data["id"]
-        streak = user_data.get("site_streak", 0)
-
-        now = pendulum.now("Asia/Shanghai")
-        today_str = now.to_date_string()
-        start_date = now.subtract(days=1).to_date_string()
-        
-        r_xp = requests.get(
-            f"https://android-api.duolingo.com/2017-06-30/users/{duolingo_id}/xp_summaries?endDate={today_str}&startDate={start_date}&timezone=Asia/Shanghai",
-            headers=DUOLINGO_HEADERS,
-        )
-        
-        today_xp = 0
-        study_time = 0
-        sessions = 0
-
-        if r_xp.ok:
-            summaries = r_xp.json().get("summaries", [])
-            for item in summaries:
-                date_ts = item.get("date")
-                item_date = pendulum.from_timestamp(date_ts, tz="Asia/Shanghai").to_date_string()
-                if item_date == today_str:
-                    today_xp = item.get("gainedXp", 0)
-                    study_time = item.get("totalSessionTime", 0)
-                    sessions = item.get("numSessions", 0)
-                    break
-        
-        minutes = study_time // 60
-        content_str = f"连胜: {streak}天 | 经验: {today_xp} XP | 时长: {minutes} 分钟 | 单元: {sessions} 个"
-        
-        return [
-            {
-                "object": "block",
-                "type": "heading_2",
-                "heading_2": {
-                    "rich_text": [{"type": "text", "text": {"content": "🦉 多邻国打卡"}}],
-                    "color": "default"
-                }
-            },
-            {
-                "object": "block",
-                "type": "callout",
-                "callout": {
-                    "rich_text": [{"type": "text", "text": {"content": content_str}}],
-                    "icon": {"emoji": "🔥" if today_xp > 0 else "💤"},
-                    "color": "green_background" if today_xp > 0 else "gray_background"
-                }
-            }
-        ]
-    except Exception as e:
-        print(f"获取多邻国数据出错: {e}")
-        return None
-
 def create_daily_log():
     now = pendulum.now("Asia/Shanghai")
     today_str = now.to_date_string()
@@ -163,10 +89,6 @@ def create_daily_log():
     page_id = new_page.get("id")
     print(f"成功创建日记页面: {today_str}")
 
-    # 写入多邻国数据
-    duolingo_blocks = get_duolingo_daily_stats()
-    if duolingo_blocks:
-        helper.append_blocks(page_id, duolingo_blocks)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
