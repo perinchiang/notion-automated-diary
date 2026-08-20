@@ -5,8 +5,8 @@ from notion_helper import NotionHelper
 import utils
 import time
 
-# 动态图标
-DIARY_ICON = "https://api.wolai.com/v1/icon?type=1&locale=cn&pro=0&color=red&method=f1"
+# 动态图标（日期烧进 URL，渲染固定日期；type/颜色与模板手动建的页面保持一致）
+DIARY_ICON = "https://api.wolai.com/v1/icon?type=2&locale=en_US&pro=0&color=red&v=2de28fdf&date={date}"
 
 ALL_ICON_URL = "https://www.notion.so/icons/site-selection_gray.svg"
 
@@ -201,7 +201,8 @@ def create_daily_log():
         properties["Word Count"] = utils.get_number(0)
 
         parent = {"database_id": helper.day_database_id, "type": "database_id"}
-        helper.create_page(parent=parent, properties=properties, icon=utils.get_icon(DIARY_ICON))
+        icon_url = DIARY_ICON.format(date=today_str)
+        helper.create_page(parent=parent, properties=properties, icon=utils.get_icon(icon_url))
 
     maintain_recent_days(7)
 
