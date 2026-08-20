@@ -172,6 +172,57 @@ def maintain_unlinked(seen=None):
     print(f"🧹 兜底修复 {fixed} 篇，跳过 {skipped} 篇（无法判断日期，不碰）。")
 
 
+def icon_needs_fix(page):
+    """无图标，或图标是未解析的动态引用（notion://custom_emoji，永远渲染"今天"）都需要补。"""
+    icon = page.get("icon")
+    if not icon:
+        return True
+    url = (icon.get("external") or {}).get("url", "")
+    return url.startswith("notion://custom_emoji")
+
+
+def backfill_icons():
+    """全库扫描：给无图标（或动态引用坏图标）的日记补上带自身日期的日历图标。已有正常图标的一律不碰。"""
+    results = []
+    cursor = None
+    while True:
+        kwargs = {"database_id": helper.day_database_id, "page_size": 100}
+        if cursor:
+            kwargs["start_cursor"] = cursor
+        response = helper.query(**kwargs)
+        results.extend(response.get("results", []))
+        if not response.get("has_more"):
+            break
+        cursor = response.get("next_cursor")
+
+    fixed = 0
+    for page in results:
+        if not icon_needs_fix(page):
+            continue
+        props = page.get("properties", {})
+        start = ((props.get("Date") or {}).get("date") or {}).get("start", "")[:10]
+        title = ""
+        for t in (props.get("Name") or {}).get("title", []):
+            title += t.get("plain_text", "")
+        day = start
+        if not day:
+            m = re.match(r"^(\d{4}-\d{2}-\d{2})", title.strip())
+            day = m.group(1) if m else None
+        if not day:
+            continue
+        try:
+            helper.client.pages.update(
+                page_id=page["id"], icon=utils.get_icon(DIARY_ICON.format(date=day))
+            )
+            fixed += 1
+            print(f"   🖼️ 已为「{title or day}」补上 {day} 的日历图标")
+            time.sleep(0.4)
+        except Exception as e:
+            print(f"   ❌ 「{title}」图标补齐失败: {e}")
+
+    print(f"🖼️ 图标兜底：本次为 {fixed} 篇日记补齐日历图标。")
+
+
 def create_daily_log():
     """旧行为：自动创建今日页面。用 --create 启用。"""
     now = pendulum.now("Asia/Shanghai")
@@ -218,3 +269,4 @@ if __name__ == "__main__":
     else:
         seen = maintain_recent_days(args.days)
         maintain_unlinked(seen)
+        backfill_icons()
