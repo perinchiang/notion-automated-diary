@@ -1,14 +1,17 @@
-name: Daily Diary Sync
+name: Cleanup Empty Diary Pages
 
 on:
   workflow_dispatch:
-  schedule:
-    # 北京时间 23:45 (UTC 15:45) -> 维护最近7天：补日期/关联 + 统计字数（不创建页面）
-    - cron: "45 15 * * *"
+    inputs:
+      apply:
+        description: "真正归档（不勾选则只预览）"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
-  sync:
-    name: Maintain Diary Pages
+  cleanup:
+    name: Cleanup Empty Pages
     runs-on: ubuntu-latest
     env:
         NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
@@ -27,6 +30,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Maintain Diary Pages
+      - name: Run cleanup
         run: |
-          python -u scripts/diary.py
+          if [ "${{ inputs.apply }}" = "true" ]; then
+            python -u scripts/cleanup_empty.py --apply
+          else
+            python -u scripts/cleanup_empty.py
+          fi

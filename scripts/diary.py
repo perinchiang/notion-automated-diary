@@ -1,15 +1,18 @@
 import argparse
+import re
 import pendulum
 from notion_helper import NotionHelper
 import utils
 import time
-from config import RELATION, TITLE, DATE
 
 # 动态图标
 DIARY_ICON = "https://api.wolai.com/v1/icon?type=1&locale=cn&pro=0&color=red&method=f1"
 
+ALL_ICON_URL = "https://www.notion.so/icons/site-selection_gray.svg"
+
+
 def get_text_from_blocks(blocks):
-    """递归提取 Block 中的纯文本"""
+    """提取 Block 中的纯文本"""
     text_content = ""
     for block in blocks:
         b_type = block.get("type")
@@ -17,82 +20,176 @@ def get_text_from_blocks(blocks):
             rich_texts = block[b_type].get("rich_text", [])
             for rt in rich_texts:
                 text_content += rt.get("plain_text", "")
-        if block.get("has_children"):
-            pass
     return text_content
 
-def update_word_count(page_id, title="未知日期"):
-    """统计页面Word Count并更新"""
-    # 增加 title 参数方便日志查看
-    print(f"   📝 正在统计: {title} ...", end="")
+
+def count_words(page_id):
+    blocks = helper.get_block_children(page_id)
+    clean_text = get_text_from_blocks(blocks).replace(" ", "").replace("\n", "")
+    return len(clean_text)
+
+
+def get_title(props):
+    title_prop = props.get("Name") or props.get("标题")
+    if title_prop and title_prop.get("title"):
+        return title_prop["title"][0].get("plain_text", "未知日期")
+    return "未知日期"
+
+
+def relation_filled(props, name):
+    prop = props.get(name) or {}
+    return bool(prop.get("relation"))
+
+
+def maintain_page(page, day, day_str):
+    """维护一篇已存在的日记：补 Date、补 Year/Month/Week/All 关联、统计字数。不创建任何页面。"""
+    page_id = page.get("id")
+    props = page.get("properties", {})
+    print(f"📝 {day_str} ({get_title(props)}) ...", end="")
+
+    updates = {}
+    if not (props.get("Date") or {}).get("date"):
+        updates["Date"] = utils.get_date(day_str)
+
+    if not relation_filled(props, "Year"):
+        updates["Year"] = utils.get_relation([helper.get_year_relation_id(day)])
+    if not relation_filled(props, "Month"):
+        updates["Month"] = utils.get_relation([helper.get_month_relation_id(day)])
+    if not relation_filled(props, "Week"):
+        updates["Week"] = utils.get_relation([helper.get_week_relation_id(day)])
+    if not relation_filled(props, "All"):
+        updates["All"] = utils.get_relation(
+            [helper.get_relation_id("All", helper.all_database_id, ALL_ICON_URL)]
+        )
+
     try:
-        blocks = helper.get_block_children(page_id)
-        full_text = get_text_from_blocks(blocks)
-        clean_text = full_text.replace(" ", "").replace("\n", "")
-        count = len(clean_text)
-        
-        properties = {
-            "Word Count": utils.get_number(count) 
-        }
-        helper.update_page(page_id, properties)
-        print(f" ✅ {count} 字")
-        
+        count = count_words(page_id)
+        updates["Word Count"] = utils.get_number(count)
+        extra = "，已补日期/关联" if len(updates) > 1 else ""
+        print(f" ✅ {count} 字{extra}")
     except Exception as e:
-        print(f" ❌ 失败: {e}")
+        print(f" ❌ 字数统计失败: {e}")
 
-# --- 新增函数：同步最近 N 天的字数 ---
-def sync_recent_word_counts(days=7):
-    # 1. 计算 N 天前的日期
-    start_date = pendulum.now("Asia/Shanghai").subtract(days=days).to_date_string()
-    print(f"\n🔍 开始检查最近 {days} 天 ({start_date} 以来) 的日记字数...")
+    if updates:
+        helper.update_page(page_id, updates)
+    time.sleep(0.5)
 
-    # 2. 构建过滤条件 (利用 Notion API 过滤，而不是拉取所有数据)
-    filter_params = {
-        "property": "Date", # 你的数据库日期字段叫 "Date"
-        "date": {
-            "on_or_after": start_date
-        }
+
+def maintain_recent_days(days=7):
+    now = pendulum.now("Asia/Shanghai")
+    start_date = now.subtract(days=days).to_date_string()
+    print(f"🔍 扫描最近 {days} 天的日记（只维护，不创建）...")
+
+    seen = set()
+
+    # 1. 按 Date 属性找（标题随意但设置了 Date 的页面）
+    response = helper.query(
+        database_id=helper.day_database_id,
+        filter={"property": "Date", "date": {"on_or_after": start_date}},
+    )
+    for page in response.get("results", []):
+        date_value = ((page.get("properties") or {}).get("Date") or {}).get("date") or {}
+        start = date_value.get("start")
+        if not start:
+            continue
+        seen.add(page.get("id"))
+        maintain_page(page, pendulum.parse(start[:10], tz="Asia/Shanghai"), start[:10])
+
+    # 2. 按标题找（标题是 YYYY-MM-DD 但没设 Date 的页面）
+    for i in range(days):
+        day = now.subtract(days=i)
+        day_str = day.to_date_string()
+        response = helper.query(
+            database_id=helper.day_database_id,
+            filter={"property": "Name", "title": {"equals": day_str}},
+        )
+        for page in response.get("results", []):
+            if page.get("id") in seen:
+                continue
+            seen.add(page.get("id"))
+            maintain_page(page, day, day_str)
+
+    print(f"📦 近期扫描共处理 {len(seen)} 篇。")
+    return seen
+
+
+def maintain_unlinked(seen=None):
+    """全库兜底：找出任何缺 Date / Year / Month / Week / All / Word Count 的页面（不限日期），
+    覆盖'心血来潮导入一篇旧日记'的场景——只要 Date 设对或标题是 YYYY-MM-DD，就会被自动关联。"""
+    seen = seen or set()
+    flt = {
+        "or": [
+            {"property": "Date", "date": {"is_empty": True}},
+            {"property": "Year", "relation": {"is_empty": True}},
+            {"property": "Month", "relation": {"is_empty": True}},
+            {"property": "Week", "relation": {"is_empty": True}},
+            {"property": "All", "relation": {"is_empty": True}},
+            {"property": "Word Count", "number": {"is_empty": True}},
+        ]
     }
+    results = []
+    cursor = None
+    while True:
+        kwargs = {"database_id": helper.day_database_id, "filter": flt, "page_size": 100}
+        if cursor:
+            kwargs["start_cursor"] = cursor
+        response = helper.query(**kwargs)
+        results.extend(response.get("results", []))
+        if not response.get("has_more"):
+            break
+        cursor = response.get("next_cursor")
+    print(f"🧹 兜底扫描：发现 {len(results)} 篇缺关联/字数的页面（不限日期）...")
 
-    # 3. 查询符合条件的页面
-    # 注意：这里直接调用 query，不需要 query_all，因为7天的数据量很少，不需要分页
-    response = helper.query(database_id=helper.day_database_id, filter=filter_params)
-    pages = response.get("results", [])
-    
-    print(f"📦 找到 {len(pages)} 篇近期日记，准备更新字数。")
+    fixed, skipped = 0, 0
+    for page in results:
+        if page.get("id") in seen:
+            continue
+        props = page.get("properties", {})
+        date_value = (props.get("Date") or {}).get("date") or {}
+        start = (date_value.get("start") or "")[:10]
 
-    # 4. 循环更新
-    for page in pages:
-        page_id = page.get("id")
-        # 获取标题用于显示
-        props = page.get("properties")
-        title_prop = props.get("Name") or props.get("标题")
-        title = "未知日期"
-        if title_prop and title_prop.get("title"):
-            title = title_prop.get("title")[0].get("plain_text")
-            
-        update_word_count(page_id, title)
-        time.sleep(0.5) # 防止触发 API 限制
+        title = ""
+        title_prop = props.get("Name") or {}
+        for t in title_prop.get("title", []):
+            title += t.get("plain_text", "")
+
+        day = None
+        if start:
+            day = pendulum.parse(start, tz="Asia/Shanghai")
+        else:
+            m = re.match(r"^(\d{4}-\d{2}-\d{2})", title.strip())
+            if m:
+                day = pendulum.parse(m.group(1), tz="Asia/Shanghai")
+
+        if day is None:
+            skipped += 1
+            print(f"   ⏭️ 跳过「{title or '无标题'}」：既无 Date，标题也不是 YYYY-MM-DD")
+            continue
+
+        maintain_page(page, day, day.to_date_string())
+        fixed += 1
+
+    print(f"🧹 兜底修复 {fixed} 篇，跳过 {skipped} 篇（无法判断日期，不碰）。")
+
 
 def create_daily_log():
+    """旧行为：自动创建今日页面。用 --create 启用。"""
     now = pendulum.now("Asia/Shanghai")
     today_str = now.to_date_string()
     print(f"🚀 开始今日任务: {today_str}")
 
-    # 1. 检查今日页面是否存在
     day_filter = {"property": "Name", "title": {"equals": today_str}}
     response = helper.query(database_id=helper.day_database_id, filter=day_filter)
-    
+
     if len(response.get("results")) > 0:
         print(f"✅ 今日页面 {today_str} 已存在。")
     else:
-        # 创建新页面逻辑 (保持不变)
         print(f"✨ 创建新页面: {today_str}")
         relation_ids = {}
         relation_ids["Year"] = helper.get_year_relation_id(now)
         relation_ids["Month"] = helper.get_month_relation_id(now)
         relation_ids["Week"] = helper.get_week_relation_id(now)
-        relation_ids["All"] = helper.get_relation_id("All", helper.all_database_id, "https://www.notion.so/icons/site-selection_gray.svg")
+        relation_ids["All"] = helper.get_relation_id("All", helper.all_database_id, ALL_ICON_URL)
 
         properties = {}
         properties["Name"] = utils.get_title(today_str)
@@ -106,10 +203,17 @@ def create_daily_log():
         parent = {"database_id": helper.day_database_id, "type": "database_id"}
         helper.create_page(parent=parent, properties=properties, icon=utils.get_icon(DIARY_ICON))
 
-    # --- 核心修改：无论今日页面是否新建，都执行一次最近7天的字数同步 ---
-    sync_recent_word_counts(7)
+    maintain_recent_days(7)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--days", type=int, default=7, help="维护最近 N 天")
+    parser.add_argument("--create", action="store_true", help="启用旧的自动创建页面行为")
+    args = parser.parse_args()
     helper = NotionHelper()
-    create_daily_log()
+    if args.create:
+        create_daily_log()
+    else:
+        seen = maintain_recent_days(args.days)
+        maintain_unlinked(seen)
