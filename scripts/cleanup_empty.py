@@ -3,9 +3,9 @@
 判定条件（全部满足才归档）：
 1. Word Count 为空或 0
 2. Mood 关联为空
-3. Category 2 关联为空
+3. Categories 关联为空
 4. Date 早于今天（今天的页面绝不碰）
-5. 逐页读取正文确认真的没有任何文字（防止"写了但没同步字数"的页面误删）
+5. 逐页读取正文确认没有任何文字或附件（防止"写了但没同步字数"的页面误删）
 
 默认只预览，加 --apply 才真正归档。归档的页面可在 Notion 回收站恢复。
 """
@@ -15,15 +15,19 @@ import time
 from notion_helper import NotionHelper
 
 
-def get_text_from_blocks(blocks):
-    text_content = ""
+ATTACHMENT_TYPES = {"image", "file", "pdf", "video", "audio", "embed", "bookmark"}
+
+
+def has_content(blocks):
+    """文字、图片、PDF、语音、视频、附件、书签，任何一样都算有内容。"""
     for block in blocks:
         b_type = block.get("type")
+        if b_type in ATTACHMENT_TYPES:
+            return True
         if b_type in block and "rich_text" in block[b_type]:
-            rich_texts = block[b_type].get("rich_text", [])
-            for rt in rich_texts:
-                text_content += rt.get("plain_text", "")
-    return text_content
+            if any(rt.get("plain_text", "").strip() for rt in block[b_type].get("rich_text", [])):
+                return True
+    return False
 
 
 def get_title(props):
@@ -38,7 +42,7 @@ def query_candidates(database_id, before_date):
         "and": [
             {"property": "Date", "date": {"on_or_before": before_date}},
             {"property": "Mood", "relation": {"is_empty": True}},
-            {"property": "Category 2", "relation": {"is_empty": True}},
+            {"property": "Categories", "relation": {"is_empty": True}},
             {
                 "or": [
                     {"property": "Word Count", "number": {"is_empty": True}},
@@ -72,9 +76,9 @@ def main(apply):
         title = get_title(page.get("properties", {}))
         try:
             blocks = helper.get_block_children(page_id)
-            if get_text_from_blocks(blocks).strip():
+            if has_content(blocks):
                 protected += 1
-                print(f"   🛡️ 「{title}」正文有内容，保护跳过（交给每晚脚本补字数）")
+                print(f"   🛡️ 「{title}」正文有内容/附件，保护跳过（交给每晚脚本补字数）")
                 continue
             if apply:
                 helper.client.pages.update(page_id=page_id, archived=True)
