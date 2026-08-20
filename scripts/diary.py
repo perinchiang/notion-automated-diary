@@ -42,12 +42,20 @@ def relation_filled(props, name):
 
 
 def maintain_page(page, day, day_str):
-    """维护一篇已存在的日记：补 Date、补 Year/Month/Week/All 关联、统计字数。不创建任何页面。"""
+    """维护一篇已存在的日记：补标题、补 Date、补 Year/Month/Week/All 关联、统计字数。不创建任何页面。"""
     page_id = page.get("id")
     props = page.get("properties", {})
-    print(f"📝 {day_str} ({get_title(props)}) ...", end="")
+
+    raw_title = ""
+    for t in (props.get("Name") or {}).get("title", []):
+        raw_title += t.get("plain_text", "")
 
     updates = {}
+    if not raw_title.strip():
+        updates["Name"] = utils.get_title(day_str)
+        print(f"📝 {day_str}（空白标题 → 自动补「{day_str}」）...", end="")
+    else:
+        print(f"📝 {day_str}（{raw_title}）...", end="")
     if not (props.get("Date") or {}).get("date"):
         updates["Date"] = utils.get_date(day_str)
 
@@ -65,8 +73,15 @@ def maintain_page(page, day, day_str):
     try:
         count = count_words(page_id)
         updates["Word Count"] = utils.get_number(count)
-        extra = "，已补日期/关联" if len(updates) > 1 else ""
-        print(f" ✅ {count} 字{extra}")
+        extras = []
+        if "Name" in updates:
+            extras.append("标题")
+        if "Date" in updates:
+            extras.append("日期")
+        if any(k in updates for k in ("Year", "Month", "Week", "All")):
+            extras.append("时间关联")
+        suffix = f"，已补{'/'.join(extras)}" if extras else ""
+        print(f" ✅ {count} 字{suffix}")
     except Exception as e:
         print(f" ❌ 字数统计失败: {e}")
 
@@ -172,6 +187,41 @@ def maintain_unlinked(seen=None):
     print(f"🧹 兜底修复 {fixed} 篇，跳过 {skipped} 篇（无法判断日期，不碰）。")
 
 
+def create_daily_log():
+    """旧行为：自动创建今日页面。用 --create 启用。"""
+    now = pendulum.now("Asia/Shanghai")
+    today_str = now.to_date_string()
+    print(f"🚀 开始今日任务: {today_str}")
+
+    day_filter = {"property": "Name", "title": {"equals": today_str}}
+    response = helper.query(database_id=helper.day_database_id, filter=day_filter)
+
+    if len(response.get("results")) > 0:
+        print(f"✅ 今日页面 {today_str} 已存在。")
+    else:
+        print(f"✨ 创建新页面: {today_str}")
+        relation_ids = {}
+        relation_ids["Year"] = helper.get_year_relation_id(now)
+        relation_ids["Month"] = helper.get_month_relation_id(now)
+        relation_ids["Week"] = helper.get_week_relation_id(now)
+        relation_ids["All"] = helper.get_relation_id("All", helper.all_database_id, ALL_ICON_URL)
+
+        properties = {}
+        properties["Name"] = utils.get_title(today_str)
+        properties["Date"] = utils.get_date(today_str)
+        properties["Year"] = utils.get_relation([relation_ids["Year"]])
+        properties["Month"] = utils.get_relation([relation_ids["Month"]])
+        properties["Week"] = utils.get_relation([relation_ids["Week"]])
+        properties["All"] = utils.get_relation([relation_ids["All"]])
+        properties["Word Count"] = utils.get_number(0)
+
+        parent = {"database_id": helper.day_database_id, "type": "database_id"}
+        icon_url = DIARY_ICON.format(date=today_str)
+        helper.create_page(parent=parent, properties=properties, icon=utils.get_icon(icon_url))
+
+    maintain_recent_days(7)
+
+
 def icon_needs_fix(page):
     """无图标，或图标是未解析的动态引用（notion://custom_emoji，永远渲染"今天"）都需要补。"""
     icon = page.get("icon")
@@ -221,41 +271,6 @@ def backfill_icons():
             print(f"   ❌ 「{title}」图标补齐失败: {e}")
 
     print(f"🖼️ 图标兜底：本次为 {fixed} 篇日记补齐日历图标。")
-
-
-def create_daily_log():
-    """旧行为：自动创建今日页面。用 --create 启用。"""
-    now = pendulum.now("Asia/Shanghai")
-    today_str = now.to_date_string()
-    print(f"🚀 开始今日任务: {today_str}")
-
-    day_filter = {"property": "Name", "title": {"equals": today_str}}
-    response = helper.query(database_id=helper.day_database_id, filter=day_filter)
-
-    if len(response.get("results")) > 0:
-        print(f"✅ 今日页面 {today_str} 已存在。")
-    else:
-        print(f"✨ 创建新页面: {today_str}")
-        relation_ids = {}
-        relation_ids["Year"] = helper.get_year_relation_id(now)
-        relation_ids["Month"] = helper.get_month_relation_id(now)
-        relation_ids["Week"] = helper.get_week_relation_id(now)
-        relation_ids["All"] = helper.get_relation_id("All", helper.all_database_id, ALL_ICON_URL)
-
-        properties = {}
-        properties["Name"] = utils.get_title(today_str)
-        properties["Date"] = utils.get_date(today_str)
-        properties["Year"] = utils.get_relation([relation_ids["Year"]])
-        properties["Month"] = utils.get_relation([relation_ids["Month"]])
-        properties["Week"] = utils.get_relation([relation_ids["Week"]])
-        properties["All"] = utils.get_relation([relation_ids["All"]])
-        properties["Word Count"] = utils.get_number(0)
-
-        parent = {"database_id": helper.day_database_id, "type": "database_id"}
-        icon_url = DIARY_ICON.format(date=today_str)
-        helper.create_page(parent=parent, properties=properties, icon=utils.get_icon(icon_url))
-
-    maintain_recent_days(7)
 
 
 if __name__ == "__main__":
